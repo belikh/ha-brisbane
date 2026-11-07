@@ -32,17 +32,31 @@ class CatalogueResult:
     layers: list[LayerDefinition] = field(default_factory=list)
 
 
-JUNK_TITLE_SUBSTRINGS = (
-    "superseded",
-    "city plan",
-    "planning scheme",
+DYNAMIC_TITLE_SUBSTRINGS = (
+    "waste collection",
+    "bin collection",
+    "large item collection",
+    "intersection volume",
+    "rainfall",
+    "stream height",
+    "pedestrian movement",
+    "bikeway counts",
+    "events",
+    "planned temporary road occupancies",
+    "enterococci monitoring results",
+    "work schedules",
+    "enquiries",
+    "trip numbers",
+    "occupancy forecasting",
 )
 
 
 def is_junk_title(title: str) -> bool:
-    """Return True if a dataset is superseded/static planning junk."""
+    """Return True if a dataset is not dynamic (kept whitelist) or historical."""
     lowered = title.lower()
-    return any(token in lowered for token in JUNK_TITLE_SUBSTRINGS)
+    if "historical" in lowered:
+        return True
+    return not any(token in lowered for token in DYNAMIC_TITLE_SUBSTRINGS)
 
 
 def parse_catalogue(payload: dict[str, Any]) -> list[LayerDefinition]:
