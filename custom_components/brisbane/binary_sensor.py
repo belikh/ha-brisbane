@@ -11,9 +11,9 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import  BrisbaneCoordinator
-from .const import DOMAIN,  MODE_WASTE
-from .waste import put_out_tonight
+from . import BrisbaneCoordinator
+from .const import DOMAIN, MODE_WASTE
+from .waste import put_out_tonight, recycle_out_tonight_bcc
 
 
 class BrisbaneWastePutOutTonightSensor(
@@ -60,6 +60,33 @@ class BrisbaneWastePutOutTonightSensor(
         }
 
 
+class BrisbaneWasteRecycleTonightSensor(
+    CoordinatorEntity[BrisbaneCoordinator], BinarySensorEntity
+):
+    """True when recycling goes out tonight (BCC weeks)."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Recycling out tonight"
+    _attr_unique_id = "brisbane_waste_recycle_tonight"
+
+    def __init__(self, coordinator: BrisbaneCoordinator) -> None:
+        """Initialise the binary sensor."""
+        super().__init__(coordinator)
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether recycling goes out tonight."""
+        waste = self.coordinator.waste or {}
+        bin_day = str(waste.get("collection_day") or "")
+        try:
+            from zoneinfo import ZoneInfo
+
+            today = datetime.now(ZoneInfo("Australia/Brisbane")).date()
+        except Exception:  # noqa: BLE001 - fallback to UTC date
+            today = datetime.now().date()
+        return recycle_out_tonight_bcc(bin_day, self.coordinator.week_starts, today)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -69,4 +96,9 @@ async def async_setup_entry(
     coordinator: BrisbaneCoordinator = hass.data["brisbane"][entry.entry_id]
     if coordinator.mode != MODE_WASTE:
         return
-    async_add_entities([BrisbaneWastePutOutTonightSensor(coordinator)])
+    async_add_entities(
+        [
+            BrisbaneWastePutOutTonightSensor(coordinator),
+            BrisbaneWasteRecycleTonightSensor(coordinator),
+        ]
+    )

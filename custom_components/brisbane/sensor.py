@@ -11,9 +11,9 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import  BrisbaneCoordinator
-from .const import DOMAIN,  MODE_NEARBY, MODE_WASTE
-from .waste import next_collection_date
+from . import BrisbaneCoordinator
+from .const import DOMAIN, MODE_NEARBY, MODE_WASTE
+from .waste import next_collection_date, next_recycle_date_bcc
 
 EPOCH = date(2026, 1, 5)
 
@@ -106,6 +106,34 @@ class BrisbaneWasteNextCollectionSensor(
             "recycle_week": waste.get("zone"),
             "suburb": waste.get("suburb"),
         }
+
+
+class BrisbaneWasteRecycleSensor(CoordinatorEntity[BrisbaneCoordinator], SensorEntity):
+    """Sensor for the next recycling collection (BCC weeks list)."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Next recycling collection"
+    _attr_unique_id = "brisbane_waste_next_recycle"
+
+    def __init__(self, coordinator: BrisbaneCoordinator) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the next recycling date as ISO text."""
+        waste = self.coordinator.waste
+        if waste is None:
+            return "Not found — check address"
+        bin_day = str(waste.get("collection_day") or "")
+        try:
+            from zoneinfo import ZoneInfo
+
+            today = datetime.now(ZoneInfo("Australia/Brisbane")).date()
+        except Exception:  # noqa: BLE001 - fallback to UTC date
+            today = datetime.now(UTC).date()
+        nxt = next_recycle_date_bcc(bin_day, self.coordinator.week_starts, today)
+        return nxt.isoformat() if nxt else "Unavailable"
 
 
 class BrisbaneTelemetryStatusSensor(
@@ -232,6 +260,7 @@ async def async_setup_entry(
         entities.append(BrisbaneLayerSensor(coordinator, layer.title, layer.url))
     if coordinator.mode == MODE_WASTE:
         entities.append(BrisbaneWasteNextCollectionSensor(coordinator))
+        entities.append(BrisbaneWasteRecycleSensor(coordinator))
     if coordinator.mode == MODE_NEARBY:
         entities.append(BrisbaneTelemetryStatusSensor(coordinator))
         entities.append(BrisbaneIntersectionStatusSensor(coordinator))

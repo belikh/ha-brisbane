@@ -67,3 +67,42 @@ def put_out_tonight(
         next_collection_date(bin_day, on_date + timedelta(days=1))
         == on_date + timedelta(days=1)
     )
+
+
+def _parse_week_starting(value: str) -> date | None:
+    """Parse YYYY-MM-DD week_starting."""
+    try:
+        parts = (value or "").strip()[:10].split("-")
+        return date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except ValueError, IndexError:
+        return None
+
+
+def next_recycle_date_bcc(
+    bin_day: str,
+    week_starts: list[date],
+    today: date,
+) -> date | None:
+    """Return the next recycling date from BCC week_starting list."""
+    weeks = sorted(d for d in week_starts if d is not None)
+    cursor = today
+    for _ in range(12):
+        candidate = next_collection_date(bin_day, cursor)
+        if candidate is None:
+            return None
+        # Candidate is a recycling week if any week_start <= candidate <= week_start+6
+        for week_start in weeks:
+            if week_start <= candidate <= week_start + timedelta(days=6):
+                return candidate
+        cursor = candidate + timedelta(days=7)
+    return None
+
+
+def recycle_out_tonight_bcc(
+    bin_day: str,
+    week_starts: list[date],
+    on_date: date,
+) -> bool:
+    """Return True if recycling goes out tonight (BCC weeks)."""
+    tomorrow = on_date + timedelta(days=1)
+    return next_recycle_date_bcc(bin_day, week_starts, on_date) == tomorrow

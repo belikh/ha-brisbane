@@ -23,7 +23,11 @@ from .const import (
     MODE_WASTE,
 )
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.CALENDAR,
+]
 
 
 class BrisbaneCoordinator(DataUpdateCoordinator):
@@ -53,6 +57,7 @@ class BrisbaneCoordinator(DataUpdateCoordinator):
         self.layers: list[LayerDefinition] = []
         self.counts: dict[str, int] = {}
         self.waste: dict | None = None
+        self.week_starts: list = []
         self.telemetry: dict | None = None
         self.intersection: dict | None = None
         self.next_event: dict | None = None
@@ -78,11 +83,25 @@ class BrisbaneCoordinator(DataUpdateCoordinator):
             except Exception:  # noqa: BLE001 - best effort per layer
                 self.counts[layer.title] = 0
         self.waste = None
+        self.week_starts = []
         self.telemetry = None
         self.intersection = None
         self.next_event = None
         if self.address and self.mode == MODE_WASTE:
             self.waste = await self.client.fetch_waste_property(self.address)
+            if self.waste:
+                from .waste import _parse_week_starting
+
+                zone_val = str(self.waste.get("zone") or "")
+                try:
+                    raw_weeks = await self.client.fetch_collection_weeks(zone_val)
+                    self.week_starts = [
+                        d
+                        for d in (_parse_week_starting(x) for x in raw_weeks)
+                        if d is not None
+                    ]
+                except Exception:  # noqa: BLE001 - keep last known data
+                    pass
         if self.mode == MODE_NEARBY:
             with contextlib.suppress(Exception):  # keep last known data
                 self.telemetry = await self.client.fetch_telemetry_latest()
@@ -94,6 +113,7 @@ class BrisbaneCoordinator(DataUpdateCoordinator):
             "layers": self.layers,
             "counts": self.counts,
             "waste": self.waste,
+            "week_starts": self.week_starts,
             "telemetry": self.telemetry,
             "intersection": self.intersection,
             "next_event": self.next_event,

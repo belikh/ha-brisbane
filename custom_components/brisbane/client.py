@@ -165,6 +165,38 @@ class BrisbaneClient:
             response.raise_for_status()
             return parse_waste_property(await response.json())
 
+    async def fetch_collection_weeks(self, zone: str) -> list[str]:
+        """Fetch week_starting dates for a BCC zone (recycle weeks)."""
+        url = f"{CATALOGUE_URL}/waste-collection-days-collection-weeks/records"
+        where = f'zone="{zone.replace(chr(34), chr(34) * 2)}"'
+        async with self._session.get(
+            url, params={"where": where, "limit": "200"}
+        ) as response:
+            response.raise_for_status()
+            payload = await response.json()
+        return [
+            str(item.get("week_starting") or "")
+            for item in (payload.get("results") or [])
+        ]
+
+    async def resolve_property_id(
+        self, suburb: str, street: str, house: str
+    ) -> str | None:
+        """Resolve property_id from suburb/street/house via Huwise where."""
+        url = f"{CATALOGUE_URL}/{WASTE_DATASET_ID}/records"
+        where = (
+            f'suburb="{suburb.replace(chr(34), chr(34) * 2)}" AND '
+            f'street_name="{street.replace(chr(34), chr(34) * 2)}" AND '
+            f'house_number="{house.replace(chr(34), chr(34) * 2)}"'
+        )
+        async with self._session.get(
+            url, params={"where": where, "limit": "1"}
+        ) as response:
+            response.raise_for_status()
+            payload = await response.json()
+        result = parse_waste_property(payload)
+        return str(result.get("property_id")) if result else None
+
     async def fetch_waste_property(self, property_id: str) -> dict[str, Any] | None:
         """Fetch collection day / zone for one property_id."""
         url = f"{CATALOGUE_URL}/{WASTE_DATASET_ID}/records"
