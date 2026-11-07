@@ -16,8 +16,8 @@ CATALOGUE_FIXTURE = {
             "metas": {"default": {"title": "Waste Collection Days"}},
         },
         {
-            "dataset_id": "library-catalogue",
-            "metas": {"default": {"title": "Library Catalogue"}},
+            "dataset_id": "traffic-data-at-intersection",
+            "metas": {"default": {"title": "Traffic Management — Intersection volume"}},
         },
     ]
 }
@@ -39,7 +39,7 @@ WASTE_FIXTURE = {
 def test_parse_catalogue_skips_empty_and_sorts() -> None:
     layers = parse_catalogue(CATALOGUE_FIXTURE)
     assert len(layers) == 2
-    assert layers[0].title == "Library Catalogue"
+    assert layers[0].title == "Traffic Management — Intersection volume"
     assert layers[1].title == "Waste Collection Days"
 
 

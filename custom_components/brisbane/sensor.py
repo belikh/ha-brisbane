@@ -11,15 +11,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import BrisbaneCoordinator
-from .const import MODE_WASTE
+from .const import MODE_NEARBY, MODE_WASTE
 from .waste import next_collection_date
 
 EPOCH = date(2026, 1, 5)
 
 
-class BrisbaneLayerSensor(
-    CoordinatorEntity[BrisbaneCoordinator], SensorEntity
-):
+class BrisbaneLayerSensor(CoordinatorEntity[BrisbaneCoordinator], SensorEntity):
     """Sensor exposing the feature count for one Datahub layer."""
 
     _attr_has_entity_name = True
@@ -95,6 +93,97 @@ class BrisbaneWasteNextCollectionSensor(
         }
 
 
+class BrisbaneTelemetryStatusSensor(
+    CoordinatorEntity[BrisbaneCoordinator], SensorEntity
+):
+    """Live rainfall/stream status from the latest telemetry snapshot."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Telemetry (latest)"
+    _attr_unique_id = "brisbane_telemetry_status"
+    _attr_native_unit_of_measurement = "mm"
+
+    def __init__(self, coordinator: BrisbaneCoordinator) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator)
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the latest daily rainfall sum (mm)."""
+        telemetry = self.coordinator.telemetry or {}
+        value = telemetry.get("daily_sum0", telemetry.get("daily_sum"))
+        try:
+            return float(value) if value not in (None, "-") else None
+        except TypeError, ValueError:
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return the observation timestamp."""
+        telemetry = self.coordinator.telemetry or {}
+        return {"measured": telemetry.get("measured")}
+
+
+class BrisbaneIntersectionStatusSensor(
+    CoordinatorEntity[BrisbaneCoordinator], SensorEntity
+):
+    """Live traffic status from the latest intersection record."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Traffic (latest intersection)"
+    _attr_unique_id = "brisbane_intersection_status"
+
+    def __init__(self, coordinator: BrisbaneCoordinator) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator)
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the vehicle count from the latest record."""
+        intersection = self.coordinator.intersection or {}
+        try:
+            return int(intersection.get("ct") or 0)
+        except TypeError, ValueError:
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return record details."""
+        intersection = self.coordinator.intersection or {}
+        return {
+            "recorded": intersection.get("recorded"),
+            "lane": intersection.get("lane"),
+            "tsc": intersection.get("tsc"),
+        }
+
+
+class BrisbaneNextEventSensor(CoordinatorEntity[BrisbaneCoordinator], SensorEntity):
+    """Next council event (status of what's on)."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Next event"
+    _attr_unique_id = "brisbane_next_event"
+
+    def __init__(self, coordinator: BrisbaneCoordinator) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator)
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the next event subject."""
+        event = self.coordinator.next_event or {}
+        return str(event.get("subject") or "None scheduled")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return event details."""
+        event = self.coordinator.next_event or {}
+        return {
+            "start": event.get("start_datetime"),
+            "location": event.get("location"),
+        }
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -104,9 +193,11 @@ async def async_setup_entry(
     coordinator: BrisbaneCoordinator = hass.data["brisbane"][entry.entry_id]
     entities: list[SensorEntity] = []
     for layer in coordinator.layers:
-        entities.append(
-            BrisbaneLayerSensor(coordinator, layer.title, layer.url)
-        )
+        entities.append(BrisbaneLayerSensor(coordinator, layer.title, layer.url))
     if coordinator.mode == MODE_WASTE:
         entities.append(BrisbaneWasteNextCollectionSensor(coordinator))
+    if coordinator.mode == MODE_NEARBY:
+        entities.append(BrisbaneTelemetryStatusSensor(coordinator))
+        entities.append(BrisbaneIntersectionStatusSensor(coordinator))
+        entities.append(BrisbaneNextEventSensor(coordinator))
     async_add_entities(entities)

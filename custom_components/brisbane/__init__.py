@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import timedelta
 
 from aiohttp import ClientSession
@@ -11,13 +12,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .client import LayerDefinition, BrisbaneClient
+from .client import BrisbaneClient, LayerDefinition
 from .const import (
     CONF_ADDRESS,
     CONF_MODE,
     CONF_SCAN_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MODE_NEARBY,
     MODE_WASTE,
 )
 
@@ -51,6 +53,9 @@ class BrisbaneCoordinator(DataUpdateCoordinator):
         self.layers: list[LayerDefinition] = []
         self.counts: dict[str, int] = {}
         self.waste: dict | None = None
+        self.telemetry: dict | None = None
+        self.intersection: dict | None = None
+        self.next_event: dict | None = None
 
     @property
     def mode(self) -> str:
@@ -69,18 +74,29 @@ class BrisbaneCoordinator(DataUpdateCoordinator):
         self.counts = {}
         for layer in self.layers:
             try:
-                self.counts[layer.title] = (
-                    await self.client.query_layer_count(layer)
-                )
+                self.counts[layer.title] = await self.client.query_layer_count(layer)
             except Exception:  # noqa: BLE001 - best effort per layer
                 self.counts[layer.title] = 0
         self.waste = None
+        self.telemetry = None
+        self.intersection = None
+        self.next_event = None
         if self.address and self.mode == MODE_WASTE:
             self.waste = await self.client.fetch_waste_property(self.address)
+        if self.mode == MODE_NEARBY:
+            with contextlib.suppress(Exception):  # keep last known data
+                self.telemetry = await self.client.fetch_telemetry_latest()
+            with contextlib.suppress(Exception):  # keep last known data
+                self.intersection = await self.client.fetch_intersection_latest()
+            with contextlib.suppress(Exception):  # keep last known data
+                self.next_event = await self.client.fetch_next_event()
         return {
             "layers": self.layers,
             "counts": self.counts,
             "waste": self.waste,
+            "telemetry": self.telemetry,
+            "intersection": self.intersection,
+            "next_event": self.next_event,
         }
 
 
@@ -106,9 +122,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(
-        entry, PLATFORMS
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return unload_ok

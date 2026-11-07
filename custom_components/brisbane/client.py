@@ -77,9 +77,7 @@ def parse_catalogue(payload: dict[str, Any]) -> list[LayerDefinition]:
         description = str(metas.get("description") or "").strip()
         raw_theme = metas.get("theme") or []
         categories = (
-            tuple(str(c) for c in raw_theme if c)
-            if isinstance(raw_theme, list)
-            else ()
+            tuple(str(c) for c in raw_theme if c) if isinstance(raw_theme, list) else ()
         )
         layers.append(
             LayerDefinition(
@@ -137,9 +135,37 @@ class BrisbaneClient:
         count = payload.get("total_count")
         return int(count) if isinstance(count, (int, float)) else 0
 
-    async def fetch_waste_property(
-        self, property_id: str
-    ) -> dict[str, Any] | None:
+    async def fetch_telemetry_latest(self) -> dict[str, Any] | None:
+        """Fetch the latest telemetry record (status snapshot)."""
+        url = f"{CATALOGUE_URL}/telemetry-sensors-rainfall-and-stream-heights/records"
+        async with self._session.get(
+            url,
+            params={"limit": "1", "sort": "-measured"},
+        ) as response:
+            response.raise_for_status()
+            return parse_waste_property(await response.json())
+
+    async def fetch_intersection_latest(self) -> dict[str, Any] | None:
+        """Fetch the latest intersection traffic record."""
+        url = f"{CATALOGUE_URL}/traffic-data-at-intersection/records"
+        async with self._session.get(
+            url,
+            params={"limit": "1", "sort": "-recorded"},
+        ) as response:
+            response.raise_for_status()
+            return parse_waste_property(await response.json())
+
+    async def fetch_next_event(self) -> dict[str, Any] | None:
+        """Fetch the next council event (soonest first)."""
+        url = f"{CATALOGUE_URL}/brisbane-city-council-events/records"
+        async with self._session.get(
+            url,
+            params={"limit": "1", "sort": "start_datetime"},
+        ) as response:
+            response.raise_for_status()
+            return parse_waste_property(await response.json())
+
+    async def fetch_waste_property(self, property_id: str) -> dict[str, Any] | None:
         """Fetch collection day / zone for one property_id."""
         url = f"{CATALOGUE_URL}/{WASTE_DATASET_ID}/records"
         async with self._session.get(
