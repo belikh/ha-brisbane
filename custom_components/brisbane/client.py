@@ -32,6 +32,19 @@ class CatalogueResult:
     layers: list[LayerDefinition] = field(default_factory=list)
 
 
+JUNK_TITLE_SUBSTRINGS = (
+    "superseded",
+    "city plan",
+    "planning scheme",
+)
+
+
+def is_junk_title(title: str) -> bool:
+    """Return True if a dataset is superseded/static planning junk."""
+    lowered = title.lower()
+    return any(token in lowered for token in JUNK_TITLE_SUBSTRINGS)
+
+
 def parse_catalogue(payload: dict[str, Any]) -> list[LayerDefinition]:
     """Parse an Explore API catalogue payload into layers.
 
@@ -44,6 +57,8 @@ def parse_catalogue(payload: dict[str, Any]) -> list[LayerDefinition]:
         metas = (item.get("metas") or {}).get("default") or {}
         title = str(metas.get("title") or dataset_id).strip()
         if not dataset_id:
+            continue
+        if is_junk_title(title):
             continue
         description = str(metas.get("description") or "").strip()
         raw_theme = metas.get("theme") or []

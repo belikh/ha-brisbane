@@ -30,3 +30,6 @@ uv run mypy
 ```
 
 Licence: MIT. Data © Brisbane City Council (Creative Commons). Unofficial; not endorsed by the council.
+
+
+## v0.1.1 — Curated: superseded/city-plan/planning-scheme datasets removed.
