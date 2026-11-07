@@ -7,11 +7,12 @@ from datetime import UTC, date, datetime
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import BrisbaneCoordinator
-from .const import MODE_NEARBY, MODE_WASTE
+from . import  BrisbaneCoordinator
+from .const import DOMAIN,  MODE_NEARBY, MODE_WASTE
 from .waste import next_collection_date
 
 EPOCH = date(2026, 1, 5)
@@ -30,6 +31,13 @@ class BrisbaneLayerSensor(CoordinatorEntity[BrisbaneCoordinator], SensorEntity):
     ) -> None:
         """Initialise with the layer title and source URL."""
         super().__init__(coordinator)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, DOMAIN)},
+            name="Brisbane",
+            manufacturer="belikh",
+            model="Brisbane Integration",
+            configuration_url="https://github.com/belikh/ha-brisbane",
+        )
         self._layer_title = layer_title
         self._source_url = source_url
         slug = layer_title.lower().replace(" ", "_")
@@ -65,6 +73,13 @@ class BrisbaneWasteNextCollectionSensor(
     def __init__(self, coordinator: BrisbaneCoordinator) -> None:
         """Initialise the waste sensor."""
         super().__init__(coordinator)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, DOMAIN)},
+            name="Brisbane",
+            manufacturer="belikh",
+            model="Brisbane Integration",
+            configuration_url="https://github.com/belikh/ha-brisbane",
+        )
 
     @property
     def native_value(self) -> str | None:
@@ -106,6 +121,13 @@ class BrisbaneTelemetryStatusSensor(
     def __init__(self, coordinator: BrisbaneCoordinator) -> None:
         """Initialise the sensor."""
         super().__init__(coordinator)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, DOMAIN)},
+            name="Brisbane",
+            manufacturer="belikh",
+            model="Brisbane Integration",
+            configuration_url="https://github.com/belikh/ha-brisbane",
+        )
 
     @property
     def native_value(self) -> float | None:
@@ -136,6 +158,13 @@ class BrisbaneIntersectionStatusSensor(
     def __init__(self, coordinator: BrisbaneCoordinator) -> None:
         """Initialise the sensor."""
         super().__init__(coordinator)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, DOMAIN)},
+            name="Brisbane",
+            manufacturer="belikh",
+            model="Brisbane Integration",
+            configuration_url="https://github.com/belikh/ha-brisbane",
+        )
 
     @property
     def native_value(self) -> int | None:
@@ -167,6 +196,13 @@ class BrisbaneNextEventSensor(CoordinatorEntity[BrisbaneCoordinator], SensorEnti
     def __init__(self, coordinator: BrisbaneCoordinator) -> None:
         """Initialise the sensor."""
         super().__init__(coordinator)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, DOMAIN)},
+            name="Brisbane",
+            manufacturer="belikh",
+            model="Brisbane Integration",
+            configuration_url="https://github.com/belikh/ha-brisbane",
+        )
 
     @property
     def native_value(self) -> str | None:

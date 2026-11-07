@@ -7,11 +7,12 @@ from datetime import datetime
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import BrisbaneCoordinator
-from .const import MODE_WASTE
+from . import  BrisbaneCoordinator
+from .const import DOMAIN,  MODE_WASTE
 from .waste import put_out_tonight
 
 
@@ -27,6 +28,13 @@ class BrisbaneWastePutOutTonightSensor(
     def __init__(self, coordinator: BrisbaneCoordinator) -> None:
         """Initialise the binary sensor."""
         super().__init__(coordinator)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, DOMAIN)},
+            name="Brisbane",
+            manufacturer="belikh",
+            model="Brisbane Integration",
+            configuration_url="https://github.com/belikh/ha-brisbane",
+        )
 
     @property
     def is_on(self) -> bool:

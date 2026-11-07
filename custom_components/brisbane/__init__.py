@@ -126,3 +126,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return unload_ok
+
+
+async def async_get_config_entry_diagnostics(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> dict:
+    """Return diagnostics for the config entry."""
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if coordinator is None:
+        return {"configured": False, "entry_id": entry.entry_id}
+    return {
+        "configured": True,
+        "entry_id": entry.entry_id,
+        "zone": getattr(coordinator, "zone_entity", None),
+        "radius_km": getattr(coordinator, "radius_km", None),
+        "layers": [layer.title for layer in coordinator.layers],
+    }
